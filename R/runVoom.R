@@ -1,0 +1,211 @@
+#' Run functions in a typical voom workflow
+#'
+#' In the recommended workflow, this function runs voomWithQualityWeights followed by
+#' lmFit and optionally eBayes. If the contrasts of interest are already represented
+#' in the model, enable eBayes. To use contrasts.fit downstream, run eBayes
+#' after that step instead. eBayes should always be run last.
+#'
+#' Input is minimally a DGEobj containing a DGEList (typically TMM-normalized),
+#' and a formula (text representation).  Other arguments can invoke
+#' duplicateCorrelation and modify use of quality weights.
+#'
+#' Returns a DGEobj class object containing the designMatrix, VoomElist (voom
+#' output), and Fit object (lmFit output). Appends data items to the input
+#' DGEobj.
+#'
+#' Quality weights should be enabled unless there is a good reason to turn them
+#' off. If all samples are equal quality, the weights will all approach 1.0 with no
+#' consequence on the results. More typically, some samples are better than others
+#' and using quality weights improves the overall result.
+#'
+#' Use var.design if the quality weights are correlated with some factor in the experiment.
+#' This will cause the quality weights to be calculated as a group instead of individually.
+#'
+#' Use duplicate correlation (dupCorBlock) when there are subjects that have been sampled more
+#' than once (e.g. before and after some treatment).  This calculates a within-
+#' subject correlation and includes this in the model.
+#'
+#' @param dgeObj A DGEobj containing a DGEList (e.g. from runEdgeRNorm.) (Required)
+#' @param designMatrixName Name of a design matrix within dgeObj. (Required)
+#' @param dupCorBlock Supply a block argument to trigger duplicateCorrelation. (Optional)
+#'    Should be a vector the same length as ncol with values to indicate common
+#'    group membership for duplicateCorrelation.
+#' @param runDupCorTwice Default = TRUE. Gordon Smyth recommends running duplicateCorrelation
+#'   twice. Set this to false to run duplicateCorrelation just once.
+#' @param qualityWeights Runs limma::voomWithQualityWeights if set to TRUE (Default = TRUE).
+#'    This should normally be set to TRUE.
+#' @param var.design Provide a design matrix (from model.matrix) to identify
+#'    replicate groups (e.g. "~ ReplicateGroup") for quality weight determination.
+#'    Causes quality weights to be determined on a group basis.  If omitted
+#'    limma::voomWithQualityWeights treats each sample individually.
+#' @param runEBayes Runs eBayes after lmFit. (Default = TRUE)
+#' @param robust Used by eBayes. (Default = TRUE)
+#' @param proportion Proportion of genes expected to be differentially expressed
+#'   (used by eBayes) (Default = 0.01) Modify the prior accordingly if the 1st pass analysis shows
+#'   a significantly higher or lower proportion of genes regulated than the default.
+#' @param mvPlot Enables the voom mean-variance plot. (Default = TRUE)
+#'
+#' @return A DGEobj now containing designMatrix, Elist, and fit object.
+#'
+#' @examples
+#' \dontrun{
+#' #TODO
+#' }
+#'
+#' @import magrittr
+#' @importFrom limma voom lmFit eBayes voomWithQualityWeights duplicateCorrelation
+#' @importFrom stringr str_c
+#' @importFrom DGEobj getItem addItem
+#' @importFrom assertthat assert_that
+#'
+#' @export
+runVoom <- function(dgeObj,
+                    designMatrixName,
+                    dupCorBlock,
+                    runDupCorTwice = TRUE,
+                    qualityWeights = TRUE,
+                    var.design,
+                    mvPlot = TRUE,
+                    runEBayes = TRUE,
+                    robust = TRUE,
+                    proportion = 0.01) {
+
+    assertthat::assert_that(!missing("dgeObj"),
+                            "DGEobj" %in% class(dgeObj),
+                            msg = "dgeObj must be specified and must be of class 'DGEobj'.")
+    assertthat::assert_that(designMatrixName %in% names(dgeObj),
+                            msg = "designMatrixName must be specified and must be one of the items in dgeObj. Use names(dgeObj) to check for available options.")
+    assertthat::assert_that("DGEList" %in% DGEobj::showTypes(dgeObj,  FALSE)$Type,
+                            msg = "No DGEList found in dgeObj. Specify a DGEobj that contains a DGEList.")
+    designMatrix <- DGEobj::getItem(dgeObj, designMatrixName)
+
+    if ("DGEList" %in% attr(dgeObj, "type")) {
+        dgelist <- DGEobj::getItem(dgeObj, "DGEList")
+    }
+
+    # Collect calling args for documentation
+    funArgs <- match.call()
+
+    # Set run parameters
+    dupcor <- FALSE
+    if (!missing(dupCorBlock)) {
+        dupcor <- TRUE
+    }
+
+    blockQW <- FALSE
+    if (qualityWeights == TRUE & !missing(var.design)) {
+        blockQW <- TRUE
+    }
+
+    # Main Calculations (one of six blocks will be run)
+
+    # Set type of analysis
+    if (dupcor == F & qualityWeights == F & blockQW == F) {
+        # Voom squeezes the variance (borrowing from other genes) to deal
+        # with the heteroskedasticity problem
+        VoomElist <- limma::voom(dgelist, designMatrix, plot = mvPlot)
+        fit <- limma::lmFit(VoomElist, designMatrix)
+
+    } else if (dupcor == F & qualityWeights == T & blockQW == F) { # indQW analysis
+
+        VoomElist <- limma::voomWithQualityWeights(dgelist, designMatrix, plot = mvPlot, col = "blue")
+        fit <- limma::lmFit(VoomElist, designMatrix)
+
+    } else if (dupcor == F & qualityWeights == T & blockQW == T) { # blockedQW analysis
+
+        VoomElist <- limma::voomWithQualityWeights(dgelist, designMatrix, plot = mvPlot, col = "blue", var.design = var.design)
+        fit <- limma::lmFit(VoomElist, designMatrix)
+
+    } else if (dupcor == T & qualityWeights == F & blockQW == F) { # dupcor_base analysis
+
+        VoomElist <- limma::voom(dgelist, designMatrix)
+        corfit <- limma::duplicateCorrelation(VoomElist,
+                                              designMatrix,
+                                              block = dupCorBlock)
+        if (runDupCorTwice == TRUE) {
+            VoomElist <- limma::voom(dgelist, designMatrix,
+                                     correlation = corfit$consensus.correlation,
+                                     plot = mvPlot)
+            corfit <- limma::duplicateCorrelation(VoomElist,
+                                                  designMatrix,
+                                                  block = dupCorBlock)
+        }
+
+        fit <- limma::lmFit(VoomElist, designMatrix, block = dupCorBlock,
+                            correlation = corfit$consensus.correlation)
+
+    } else if (dupcor == T & qualityWeights == T & blockQW == F) { # dupcor_indQW analysis
+
+        VoomElist <- limma::voomWithQualityWeights(dgelist, designMatrix)
+        corfit <- limma::duplicateCorrelation(VoomElist,
+                                              designMatrix,
+                                              block = dupCorBlock)
+        if (runDupCorTwice == TRUE) {
+            VoomElist <- limma::voomWithQualityWeights(dgelist, designMatrix,
+                                                       plot = mvPlot, col = "blue",
+                                                       correlation = corfit$consensus.correlation)
+            corfit <- limma::duplicateCorrelation(VoomElist,
+                                                  designMatrix,
+                                                  block = dupCorBlock)
+        }
+
+        fit <- limma::lmFit(VoomElist, designMatrix, block = dupCorBlock,
+                            correlation = corfit$consensus.correlation)
+
+    } else if (dupcor == T & qualityWeights == T & blockQW == T) { # dupcor_vdQW analysis
+
+        VoomElist <- limma::voomWithQualityWeights(dgelist, designMatrix,
+                                                   var.design = var.design)
+        corfit <- limma::duplicateCorrelation(VoomElist,
+                                              designMatrix,
+                                              block = dupCorBlock)
+        if (runDupCorTwice == TRUE) {
+            VoomElist <- limma::voomWithQualityWeights(dgelist, designMatrix,
+                                                       plot = mvPlot, col = "blue",
+                                                       correlation = corfit$consensus.correlation,
+                                                       var.design = var.design)
+            corfit <- limma::duplicateCorrelation(VoomElist,
+                                                  designMatrix,
+                                                  block = dupCorBlock)
+        }
+
+        fit <- limma::lmFit(VoomElist, designMatrix, block = dupCorBlock,
+                            correlation = corfit$consensus.correlation)
+
+    }
+
+    # Run eBayes
+    if (runEBayes) {
+        fit = limma::eBayes(fit, robust = robust, proportion = proportion)
+        itemAttr <- list(eBayes = TRUE)
+    } else itemAttr <- list(eBayes = FALSE)
+
+    if (exists("corfit")) { # Duplicate correlation was used; capture the correlation value
+        cat(stringr::str_c("Duplicate Correlation = ", round(corfit$consensus.correlation, 4), "   \n"))
+        attr(VoomElist, "DupCor") <- corfit$consensus.correlation
+        attr(fit, "DupCor") <- corfit$consensus.correlation
+    }
+
+    VoomElistName = paste(designMatrixName, "_Elist", sep = "")
+    dgeObj %<>% DGEobj::addItem(VoomElist, VoomElistName,
+                                "Elist",
+                                funArgs = funArgs,
+                                parent = list("DGEList", designMatrixName)
+    )
+
+    # Add corfit if present
+    if (exists("corfit")) {
+        dgeObj %<>% DGEobj::addItem(corfit, paste(designMatrixName, "_corFit", sep = ""),
+                                    "corFit",
+                                    funArgs = funArgs,
+                                    parent = paste(designMatrixName, "_Elist", sep = ""))
+    }
+
+    dgeObj %<>% DGEobj::addItem(fit, paste(designMatrixName, "_fit", sep = ""),
+                                "fit",
+                                funArgs = funArgs,
+                                itemAttr = itemAttr,
+                                parent = list(VoomElistName, designMatrixName))
+
+    return(dgeObj)
+}
