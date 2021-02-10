@@ -7,9 +7,13 @@
 #'
 #' @param dgeObj A DGEobj with normalized counts and a DesignMatrix.
 #' @param designMatrixName The itemName of the design matrix in DGEobj.
-#' @param method Method passed to num.sv. Supports "leek" or "be". (Default = "leek")
+#' @param n.sv  Optional; Use to override the default n.sv returned by num.sv
+#'    for the number of SV to analyze.
+#' @param method Method passed to num.sv. Supports "leek" or "be". (Default =
+#'   "leek")
 #'
-#' @return dgeObj containing a new design matrix and an updated design table.
+#' @return dgeObj containing an updated design table, the svobj and a new design
+#'   matrix.
 #'
 #' @examples
 #' \dontrun{
@@ -25,6 +29,7 @@
 #' @export
 runSVA <- function(dgeObj,
                    designMatrixName,
+                   n.sv,
                    method = "leek") {
 
     assertthat::assert_that(!missing(dgeObj),
@@ -47,7 +52,13 @@ runSVA <- function(dgeObj,
 
     log2cpm <- convertCounts(dgeObj$counts, unit = "cpm", log = TRUE, normalize = "tmm")
     designMatrix <- DGEobj::getItem(dgeObj, designMatrixName)
-    n.sv <- sva::num.sv(log2cpm, designMatrix, method = method)
+    if (missing(n.sv)) {
+        n.sv <- sva::num.sv(log2cpm, designMatrix, method = method)
+    } else { # can't have n.sv > number of residual degrees of freedom
+        rdf <- ncol(dgeObj) - ncol(designMatrix)
+        if (n.sv > rdf)
+            n.sv <- rdf
+    }
     svobj <- sva::sva(log2cpm, designMatrix, NullDesignMatrix, n.sv = n.sv)
 
     # Pull out the surrogate variables
