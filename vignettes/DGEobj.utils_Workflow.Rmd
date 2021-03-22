@@ -185,6 +185,10 @@ dgeObj <- DGEobj::initDGEobj(primaryAssayData  = counts,
                                                GeneModel = "Ensembl.R89"))
 
 dgeObj <- annotateDGEobj(dgeObj, annotationFile)
+
+#cleanup
+rm(annotation_text, annotationFile, getLocation, countsFile, designFile, counts, design, gene.data, 
+   ens.ds, ens.mart, ens.columns, transcript.data, temp, qcFile, idx, ens.data, alignmentQC)
 ```
 
 Columns available in this object for building contrasts:
