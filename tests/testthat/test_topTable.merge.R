@@ -2,8 +2,6 @@ context("DGEobj.utils - tests for topTable.merge.R functions")
 
 
 test_that("topTable.merge.R: topTable.merge()", {
-    suppressWarnings(skip_if(is.null(getType(t_obj1, "topTable"))))
-
     # creating toptables list
     contrastList   <- getType(t_obj1, "topTable")
     contrast_table <- topTable.merge(contrastList = contrastList, digits = 2)

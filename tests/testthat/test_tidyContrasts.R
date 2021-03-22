@@ -2,8 +2,6 @@ context("DGEobj.utils - tests for tidyContrasts.R functions")
 
 
 test_that('tidyContrasts: tidyContrasts()', {
-    suppressWarnings(skip_if(is.null(getType(t_obj1, "topTable"))))
-
     tidyContrast_one_test <- tidyContrasts(t_obj1)
 
     expect_true(is.data.frame(tidyContrast_one_test))

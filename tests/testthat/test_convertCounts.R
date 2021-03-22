@@ -2,8 +2,6 @@ context("DGEobj.utils - tests for convertCounts.R functions")
 
 
 test_that("convertCounts.R: convertCounts()", {
-    skip_if(is.null(getItem(t_obj1, "geneData")$ExonLength))
-
     # CPM
     count_matrix <- convertCounts(counts      = t_obj1$counts_orig,
                                   unit        = "CPM",
@@ -51,7 +49,6 @@ test_that("convertCounts.R: tpm.on.subset()", {
     } else if ("effectiveLength_orig" %in% names(t_obj1)) {
         geneLength <- rowMeans(getItem(t_obj1, "effectiveLength_orig"), na.rm = TRUE)
     }
-    skip_if(is.null(geneLength))
 
     # testing level isoform
     isoform_dgeObj <- t_obj1
@@ -77,8 +74,6 @@ test_that("convertCounts.R: tpm.on.subset()", {
 })
 
 test_that("convertCounts.R: tpm.direct()", {
-    skip_if(is.null(getItem(t_obj1, "geneData")$ExonLength))
-
     genelength <- getItem(t_obj1, "geneData")$ExonLength
     tpmObj <- tpm.direct(t_obj1$counts, geneLength = genelength)
     expect_true("matrix" %in% class(tpmObj))
@@ -89,7 +84,7 @@ test_that("convertCounts.R: tpm.direct()", {
 
     # testing bad genelength parameter
     expect_error(tpm.direct(t_obj1$counts, geneLength = as.data.frame(genelength)),
-                 regexp = "The dimensions of counts and geneLength should match.")
+                 regexp = "The dimensions of countsMatrix and geneLength should match.")
 
     # testing collapse parameter
     tpmObj <- tpm.direct(t_obj1$counts, geneLength = as.matrix(genelength), collapse = TRUE)

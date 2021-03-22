@@ -2,23 +2,20 @@ context("DGEobj.utils - tests for runContrasts.R functions")
 
 
 test_that('runContrasts.R: runContrasts()', {
-    suppressWarnings(skip_if(is.null(getType(t_obj1, "topTable"))))
-    skip_if(is.null(t_obj1$RG))
-
     dgeObj <- t_obj1
     contrastList <- getType(dgeObj, "topTable")
-    names(contrastList) <- colnames(dgeObj$RG)[-1]
+    names(contrastList) <- colnames(dgeObj$ReplicateGroup)[-1]
 
     dgeObj_output <- runContrasts(dgeObj              = dgeObj,
-                                  designMatrixName    = "RG",
+                                  designMatrixName    = "ReplicateGroup",
                                   contrastList        = contrastList,
-                                  contrastSetName     = "RG_Contrasts")
+                                  contrastSetName     = "ReplicateGroup_Contrasts")
     expect_s3_class(dgeObj_output, "DGEobj")
 
     dgeObj_output <- runContrasts(dgeObj              = dgeObj,
-                                  designMatrixName    = "RG",
+                                  designMatrixName    = "ReplicateGroup",
                                   contrastList        = contrastList,
-                                  contrastSetName     = "RG_Contrasts",
+                                  contrastSetName     = "ReplicateGroup_Contrasts",
                                   runTopTreat         = TRUE,
                                   qValue              = TRUE,
                                   IHW                 = TRUE)
@@ -30,16 +27,16 @@ test_that('runContrasts.R: runContrasts()', {
     expect_error(runContrasts(dgeObj = dgeObj),
                  regexp = "designMatrixName must be specified.")
     expect_error(runContrasts(dgeObj           = dgeObj,
-                              designMatrixName = "RG",
+                              designMatrixName = "ReplicateGroup",
                               contrastList     = "XYZ"),
                  regexp = "contrastList must specified and must be a named list.")
     expect_error(runContrasts(dgeObj              = dgeObj,
-                              designMatrixName    = "RG",
+                              designMatrixName    = "ReplicateGroup",
                               contrastList        = contrastList,
                               foldChangeThreshold = -1),
                  regexp = "foldChangeThreshold must be greater than or equal to 0.")
     expect_error(runContrasts(dgeObj              = dgeObj,
-                              designMatrixName    = "RG",
+                              designMatrixName    = "ReplicateGroup",
                               contrastList        = contrastList,
                               runTopTable         = FALSE,
                               runTopTreat         = FALSE),
