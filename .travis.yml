@@ -14,6 +14,7 @@ bioc_packages:
   - RNASeqPower
   - sva
   - zFPKM
+  - biomaRt
 r_packages:
   - covr
 after_success:
