@@ -36,6 +36,8 @@ Imports:
     sva,
     zFPKM
 Suggests:
+    conflicted, 
+    glue,
     knitr,
     rmarkdown,
     testthat,
