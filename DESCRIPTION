@@ -19,7 +19,7 @@ Language: en-US
 Encoding: UTF-8
 Imports:
     assertthat,
-    DGEobj  (>= 1.0),
+    DGEobj  (>= 1.0.2),
     dplyr   (>= 0.8),
     ggplot2,
     magrittr,
@@ -35,6 +35,8 @@ Imports:
     RNASeqPower,
     sva,
     zFPKM
+Remotes:
+    github::cb4ds/DGEobj@cran
 Suggests:
     conflicted, 
     glue,

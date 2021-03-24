@@ -5,7 +5,7 @@ r:
   - oldrel
   - release
   - devel
-cache: false
+cache: packages
 bioc_packages:
   - edgeR
   - IHW
